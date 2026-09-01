@@ -1,20 +1,29 @@
 'use client';
 
 import {
+  ArrowDown,
   AudioLines,
+  BookOpen,
+  BookOpenCheck,
+  CaseSensitive,
   CheckCircle2,
   Crown,
   Flag,
   Keyboard,
+  Lightbulb,
+  Link2,
+  ListChecks,
   Mic,
   MicOff,
+  Play,
   RotateCcw,
-  Sparkles,
   Trophy,
   Undo2,
+  UsersRound,
   Volume2,
   VolumeX,
   XCircle,
+  type LucideIcon,
 } from 'lucide-react';
 import { pinyin } from 'pinyin-pro';
 import {
@@ -96,7 +105,7 @@ type Snapshot = {
 const RULES: Record<
   RuleMode,
   {
-    icon: string;
+    icon: LucideIcon;
     label: string;
     short: string;
     description: string;
@@ -105,53 +114,61 @@ const RULES: Record<
     soft: string;
     text: string;
     border: string;
-    shadow: string;
   }
 > = {
   char: {
-    icon: '🔵',
+    icon: CaseSensitive,
     label: '尾字相同',
-    short: '📝 尾字',
+    short: '尾字',
     description: '新词的首字，要和上一个词的尾字一模一样。',
     example: '语文 → 文化',
-    accent: 'bg-sky-500 hover:bg-sky-400',
+    accent: 'bg-sky-600 hover:bg-sky-700',
     soft: 'bg-sky-50',
-    text: 'text-sky-700',
+    text: 'text-sky-800',
     border: 'border-sky-200',
-    shadow: 'shadow-[0_6px_0_#0369a1]',
   },
   sound: {
-    icon: '🟢',
+    icon: AudioLines,
     label: '尾音相同',
-    short: '🔊 尾音',
+    short: '尾音',
     description: '新词首字的拼音和声调，要与上一个尾字完全相同。',
     example: '好事 shì → 世事 shì',
-    accent: 'bg-emerald-500 hover:bg-emerald-400',
+    accent: 'bg-emerald-600 hover:bg-emerald-700',
     soft: 'bg-emerald-50',
-    text: 'text-emerald-700',
+    text: 'text-emerald-800',
     border: 'border-emerald-200',
-    shadow: 'shadow-[0_6px_0_#047857]',
   },
   idiom: {
-    icon: '🟡',
+    icon: BookOpen,
     label: '成语接龙',
-    short: '📚 成语',
+    short: '成语',
     description: '必须说四字成语，首字还要接上前一个成语的尾字。',
     example: '一马当先 → 先入为主',
-    accent: 'bg-amber-400 hover:bg-amber-300',
+    accent: 'bg-amber-400 hover:bg-amber-500',
     soft: 'bg-amber-50',
     text: 'text-amber-800',
     border: 'border-amber-200',
-    shadow: 'shadow-[0_6px_0_#b45309]',
   },
 };
 
 const GROUP_NAMES = ['向日葵组', '小火箭组', '智慧星组', '彩虹组'];
 const GROUP_STYLES = [
-  'border-sky-300 bg-sky-50 text-sky-800',
-  'border-emerald-300 bg-emerald-50 text-emerald-800',
-  'border-amber-300 bg-amber-50 text-amber-800',
-  'border-rose-300 bg-rose-50 text-rose-800',
+  {
+    card: 'border-sky-200 bg-sky-50 text-sky-950',
+    ring: 'ring-sky-400',
+  },
+  {
+    card: 'border-emerald-200 bg-emerald-50 text-emerald-950',
+    ring: 'ring-emerald-400',
+  },
+  {
+    card: 'border-amber-200 bg-amber-50 text-amber-950',
+    ring: 'ring-amber-400',
+  },
+  {
+    card: 'border-rose-200 bg-rose-50 text-rose-950',
+    ring: 'ring-rose-400',
+  },
 ];
 
 const COMMON_IDIOMS = [
@@ -177,7 +194,7 @@ const COMMON_IDIOMS = [
   '贵人多忘',
 ];
 
-const CONFETTI = Array.from({ length: 24 }, (_, index) => ({
+const CONFETTI = Array.from({ length: 18 }, (_, index) => ({
   left: `${(index * 37) % 100}%`,
   delay: `${(index % 7) * 0.11}s`,
   color: ['#38bdf8', '#34d399', '#fbbf24', '#fb7185'][index % 4],
@@ -253,6 +270,7 @@ export default function Home() {
   const recognitionSessionRef = useRef(0);
   const audioContextRef = useRef<AudioContext | null>(null);
   const recordEndRef = useRef<HTMLDivElement | null>(null);
+  const resultsDialogRef = useRef<HTMLDialogElement | null>(null);
   const speechSupported = useSyncExternalStore(
     subscribeToSpeechSupport,
     getSpeechSupportSnapshot,
@@ -306,6 +324,20 @@ export default function Home() {
       block: 'nearest',
     });
   }, [chain.length, attempts.length]);
+
+  useEffect(() => {
+    const dialog = resultsDialogRef.current;
+    if (!dialog) return;
+
+    if (showResults && !dialog.open) {
+      dialog.showModal();
+      dialog
+        .querySelector<HTMLElement>('[data-dialog-heading]')
+        ?.focus({ preventScroll: true });
+    } else if (!showResults && dialog.open) {
+      dialog.close();
+    }
+  }, [showResults]);
 
   function playFeedbackSound(kind: 'success' | 'fail') {
     if (!soundEnabled) return;
@@ -381,7 +413,7 @@ export default function Home() {
     const word = normalizeWord(startWord);
     const error = validateStartingWord(word);
     if (error) {
-      setFeedback({ type: 'fail', message: `❌ ${error}` });
+      setFeedback({ type: 'fail', message: error });
       playFeedbackSound('fail');
       return;
     }
@@ -405,8 +437,8 @@ export default function Home() {
       type: 'info',
       message:
         playMode === 'pk'
-          ? `🚩 ${nextGroups[0].name}先来，准备接龙！`
-          : '🎙️ 起始词已设定，谁先来挑战？',
+          ? `${nextGroups[0].name}先来，准备接龙！`
+          : '起始词已设定，谁先来挑战？',
     });
   }
 
@@ -419,23 +451,23 @@ export default function Home() {
     if (!word || !isHanWord(word) || currentChars.length < 2) {
       return {
         success: false,
-        message: '❌ 请说一个至少两个汉字的词语哦！',
+        message: '请说一个至少两个汉字的词语哦！',
       };
     }
 
     if (rule === 'idiom') {
       if (currentChars.length !== 4 || !idiomSetRef.current.has(word)) {
-        return { success: false, message: '❌ 要说出四字成语哦！' };
+        return { success: false, message: '要说出四字成语哦！' };
       }
       if (currentHead !== previousTail) {
         return {
           success: false,
-          message: `❌ 首字要接上“${previousTail}”哦！`,
+          message: `首字要接上“${previousTail}”哦！`,
         };
       }
       return {
         success: true,
-        message: '✅ 成语接龙成功！',
+        message: '成语接龙成功！',
         detail: `${previous} → ${word}`,
       };
     }
@@ -444,13 +476,13 @@ export default function Home() {
       if (currentHead !== previousTail) {
         return {
           success: false,
-          message: `❌ 首字要和“${previousTail}”一样哦！`,
+          message: `首字要和“${previousTail}”一样哦！`,
           detail: `你说的是“${currentHead}”开头`,
         };
       }
       return {
         success: true,
-        message: '✅ 接龙成功！',
+        message: '接龙成功！',
         detail: `${previous} → ${word}`,
       };
     }
@@ -460,14 +492,14 @@ export default function Home() {
     if (actual !== expected) {
       return {
         success: false,
-        message: '❌ 拼音和声调都要一样哦！',
+        message: '拼音和声调都要一样哦！',
         detail: `“${previousTail}”是 ${expected}，“${currentHead}”是 ${actual}`,
       };
     }
 
     return {
       success: true,
-      message: '✅ 尾音接龙成功！',
+      message: '尾音接龙成功！',
       detail: `${previousTail} ${expected} → ${currentHead} ${actual}`,
     };
   }
@@ -609,7 +641,7 @@ export default function Home() {
       setIsRecording(true);
       setFeedback({
         type: 'info',
-        message: '🎧 正在听，请清楚地说出答案……',
+        message: '正在听，请清楚地说出答案……',
         detail: '说完后稍等一下，系统会自动判断。',
       });
     } catch {
@@ -634,7 +666,7 @@ export default function Home() {
     setShowResults(false);
     setFeedback({
       type: 'info',
-      message: '↩️ 已撤销上一次判定。',
+      message: '已撤销上一次判定。',
       detail: '接龙、积分和轮次都已恢复。',
     });
   }
@@ -671,20 +703,23 @@ export default function Home() {
     );
   }
 
+  const ThemeIcon = theme.icon;
+  const PlayModeIcon = playMode === 'pk' ? UsersRound : BookOpenCheck;
+
   return (
     <main className="min-h-screen overflow-x-hidden bg-background text-foreground">
-      <header className="border-b border-sky-100/90 bg-white/90 px-4 py-3 backdrop-blur sm:px-7">
+      <header className="border-b border-slate-200 bg-white px-4 py-3 sm:px-7">
         <div className="mx-auto flex max-w-[1500px] flex-wrap items-center justify-between gap-3">
           <div className="flex items-center gap-3">
-            <span className="grid size-11 place-items-center rounded-2xl bg-sky-500 text-2xl shadow-[0_5px_0_#0369a1]">
-              🐉
+            <span className="grid size-11 place-items-center rounded-xl bg-sky-700 text-white">
+              <Link2 className="size-6" strokeWidth={2.25} aria-hidden="true" />
             </span>
             <div>
-              <h1 className="text-lg font-black tracking-tight sm:text-2xl">
+              <h1 className="text-lg font-extrabold tracking-tight text-slate-950 sm:text-2xl">
                 词语接龙 · 小组PK赛
               </h1>
-              <p className="hidden text-sm font-semibold text-slate-500 sm:block">
-                开动脑筋，把词语一个个接起来！
+              <p className="hidden text-sm font-medium text-slate-600 sm:block">
+                三年级语文课堂互动工具
               </p>
             </div>
           </div>
@@ -693,111 +728,157 @@ export default function Home() {
             <Button
               variant="outline"
               size="icon-lg"
-              className="size-11 rounded-full border-2 bg-white"
+              className="size-11 rounded-xl border-slate-200 bg-white text-slate-700 hover:bg-slate-50"
               onClick={() => setSoundEnabled((enabled) => !enabled)}
               aria-label={soundEnabled ? '关闭音效' : '开启音效'}
             >
-              {soundEnabled ? <Volume2 /> : <VolumeX />}
+              {soundEnabled ? (
+                <Volume2 className="size-5" />
+              ) : (
+                <VolumeX className="size-5" />
+              )}
             </Button>
             <Button
               variant="outline"
-              className="h-11 rounded-full border-2 bg-white px-4 font-black"
+              className="h-11 rounded-xl border-slate-200 bg-white px-4 font-bold text-slate-700 hover:bg-slate-50"
               onClick={() => resetGame()}
             >
-              <RotateCcw /> 重置
+              <RotateCcw className="size-4" /> 重置
             </Button>
           </div>
         </div>
       </header>
 
-      <section className="mx-auto max-w-[1500px] px-4 py-5 sm:px-7">
-        <div className="mb-5 flex flex-col items-center justify-between gap-4 rounded-[28px] border border-white/80 bg-white/75 p-3 shadow-[0_14px_40px_rgb(14_116_144/8%)] backdrop-blur lg:flex-row">
-          <div className="grid w-full grid-cols-3 gap-2 lg:w-auto">
-            {(Object.keys(RULES) as RuleMode[]).map((mode) => {
-              const item = RULES[mode];
-              const selected = rule === mode;
-              return (
-                <Button
-                  key={mode}
-                  variant="ghost"
-                  disabled={phase !== 'setup'}
-                  aria-pressed={selected}
-                  onClick={() => setRule(mode)}
-                  className={`min-h-14 rounded-2xl px-2 text-xs font-black sm:px-6 sm:text-base ${
-                    selected
-                      ? `${item.accent} ${item.shadow} ${
-                          mode === 'idiom'
-                            ? 'text-amber-950 hover:text-amber-950'
-                            : 'text-white hover:text-white'
-                        }`
-                      : 'bg-slate-50 text-slate-600 hover:bg-sky-50'
-                  }`}
-                >
-                  <span aria-hidden="true">{item.icon}</span> {item.label}
-                </Button>
-              );
-            })}
-          </div>
+      <section className="mx-auto max-w-[1500px] px-4 py-4 sm:px-7 sm:py-5">
+        {phase === 'setup' ? (
+          <div className="mb-5 flex flex-col items-center justify-between gap-3 rounded-2xl border border-slate-200 bg-white p-2.5 lg:flex-row">
+            <div className="grid w-full grid-cols-3 gap-2 lg:w-auto">
+              {(Object.keys(RULES) as RuleMode[]).map((mode) => {
+                const item = RULES[mode];
+                const RuleIcon = item.icon;
+                const selected = rule === mode;
+                return (
+                  <Button
+                    key={mode}
+                    variant="ghost"
+                    aria-pressed={selected}
+                    onClick={() => setRule(mode)}
+                    className={`min-h-13 rounded-xl px-2 text-xs font-bold sm:px-5 sm:text-base ${
+                      selected
+                        ? `${item.accent} ${
+                            mode === 'idiom'
+                              ? 'text-amber-950 hover:text-amber-950'
+                              : 'text-white hover:text-white'
+                          }`
+                        : 'bg-slate-50 text-slate-700 hover:bg-slate-100'
+                    }`}
+                  >
+                    <RuleIcon
+                      className="size-5"
+                      strokeWidth={2}
+                      aria-hidden="true"
+                    />
+                    {item.label}
+                  </Button>
+                );
+              })}
+            </div>
 
-          <div className="flex w-full rounded-2xl bg-slate-100 p-1.5 lg:w-auto">
-            {(
-              [
-                ['practice', '🌱 自由练习'],
-                ['pk', '🏆 小组PK'],
-              ] as const
-            ).map(([mode, label]) => (
-              <Button
-                key={mode}
-                variant="ghost"
-                disabled={phase !== 'setup'}
-                aria-pressed={playMode === mode}
-                onClick={() => setPlayMode(mode)}
-                className={`h-12 flex-1 rounded-xl px-5 font-black ${
-                  playMode === mode
-                    ? 'bg-white text-sky-700 shadow-sm hover:bg-white'
-                    : 'text-slate-500'
-                }`}
-              >
-                {label}
-              </Button>
-            ))}
+            <div className="flex w-full rounded-xl bg-slate-100 p-1 lg:w-auto">
+              {(
+                [
+                  {
+                    mode: 'practice',
+                    label: '自由练习',
+                    icon: BookOpenCheck,
+                  },
+                  { mode: 'pk', label: '小组PK', icon: UsersRound },
+                ] as const
+              ).map((item) => {
+                const ModeIcon = item.icon;
+                return (
+                  <Button
+                    key={item.mode}
+                    variant="ghost"
+                    aria-pressed={playMode === item.mode}
+                    onClick={() => setPlayMode(item.mode)}
+                    className={`h-11 flex-1 rounded-lg px-5 font-bold ${
+                      playMode === item.mode
+                        ? 'bg-white text-sky-800 shadow-sm hover:bg-white'
+                        : 'text-slate-600 hover:text-slate-800'
+                    }`}
+                  >
+                    <ModeIcon
+                      className="size-5"
+                      strokeWidth={2}
+                      aria-hidden="true"
+                    />
+                    {item.label}
+                  </Button>
+                );
+              })}
+            </div>
           </div>
-        </div>
+        ) : (
+          <div className="mb-4 flex flex-wrap items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm font-semibold text-slate-700">
+            <span
+              className={`inline-flex items-center gap-2 rounded-lg ${theme.soft} px-3 py-1.5 ${theme.text}`}
+            >
+              <ThemeIcon
+                className="size-4"
+                strokeWidth={2}
+                aria-hidden="true"
+              />
+              {theme.label}
+            </span>
+            <span className="inline-flex items-center gap-2 rounded-lg bg-slate-100 px-3 py-1.5">
+              <PlayModeIcon
+                className="size-4"
+                strokeWidth={2}
+                aria-hidden="true"
+              />
+              {playMode === 'pk' ? '小组PK' : '自由练习'}
+            </span>
+            <span className="ml-auto text-slate-600">
+              {phase === 'finished' ? '本局已结束' : '本局进行中'}
+            </span>
+          </div>
+        )}
 
         {phase !== 'setup' && playMode === 'pk' && (
-          <section className="mb-5" aria-label="小组积分看板">
+          <section className="mb-4" aria-label="小组积分看板">
             <div
               className={`grid gap-3 grid-cols-2 ${groups.length > 2 ? 'lg:grid-cols-4' : ''}`}
             >
               {groups.map((group, index) => {
+                const groupStyle = GROUP_STYLES[index % GROUP_STYLES.length];
                 const active =
                   phase === 'playing' && index === currentGroupIndex;
                 return (
                   <div
                     key={group.id}
-                    className={`relative rounded-3xl border-2 p-4 transition ${GROUP_STYLES[index]} ${
+                    aria-current={active ? 'true' : undefined}
+                    className={`rounded-2xl border p-3 transition ${groupStyle.card} ${
                       active
-                        ? 'ring-4 ring-violet-300 ring-offset-2 ring-offset-background'
-                        : 'opacity-90'
+                        ? `ring-2 ${groupStyle.ring} ring-offset-2 ring-offset-background`
+                        : ''
                     }`}
                   >
-                    {active && (
-                      <span className="absolute -top-3 left-1/2 -translate-x-1/2 rounded-full bg-violet-600 px-3 py-1 text-xs font-black text-white">
-                        轮到我们
-                      </span>
-                    )}
                     <div className="flex items-center justify-between gap-3">
                       <div className="min-w-0">
-                        <p className="truncate text-lg font-black sm:text-xl">
+                        <p className="truncate text-lg font-extrabold sm:text-xl">
                           {group.name}
                         </p>
-                        <p className="text-xs font-bold opacity-65">
-                          第 {group.id} 组
+                        <p className="mt-1 flex items-center gap-1.5 text-sm font-semibold">
+                          {active && (
+                            <Flag className="size-3.5" aria-hidden="true" />
+                          )}
+                          {active ? '当前作答' : `第 ${group.id} 组`}
                         </p>
                       </div>
-                      <p className="text-4xl font-black tabular-nums sm:text-5xl">
+                      <p className="text-4xl font-extrabold tabular-nums sm:text-5xl">
                         {group.score}
-                        <span className="ml-1 text-sm">分</span>
+                        <span className="ml-1 text-sm font-bold">分</span>
                       </p>
                     </div>
                   </div>
@@ -810,25 +891,30 @@ export default function Home() {
         {phase === 'setup' ? (
           <div className="grid gap-5 lg:grid-cols-[minmax(0,1.2fr)_minmax(360px,.8fr)]">
             <section
-              className={`rounded-[34px] border-2 ${theme.border} bg-white p-5 shadow-[0_20px_60px_rgb(14_116_144/10%)] sm:p-8`}
+              className={`rounded-2xl border ${theme.border} bg-white p-5 shadow-[0_8px_24px_rgb(15_23_42/5%)] sm:p-8`}
             >
               <div className="flex flex-wrap items-start justify-between gap-3">
                 <div>
                   <span
-                    className={`inline-flex rounded-full ${theme.soft} px-3 py-1.5 text-sm font-black ${theme.text}`}
+                    className={`inline-flex items-center gap-2 rounded-lg ${theme.soft} px-3 py-1.5 text-sm font-bold ${theme.text}`}
                   >
+                    <ThemeIcon
+                      className="size-4"
+                      strokeWidth={2}
+                      aria-hidden="true"
+                    />
                     {theme.short}
                   </span>
-                  <h2 className="mt-3 text-3xl font-black sm:text-4xl">
+                  <h2 className="mt-3 text-3xl font-extrabold text-slate-950 sm:text-4xl">
                     设置这一局
                   </h2>
-                  <p className="mt-2 max-w-2xl text-base font-semibold leading-7 text-slate-500 sm:text-lg">
+                  <p className="mt-2 max-w-2xl text-base font-medium leading-7 text-slate-600 sm:text-lg">
                     {theme.description}
                   </p>
                 </div>
                 {rule === 'idiom' && (
                   <span
-                    className={`rounded-full px-3 py-1.5 text-xs font-black ${
+                    className={`inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-bold ${
                       idiomState === 'ready'
                         ? 'bg-emerald-100 text-emerald-700'
                         : idiomState === 'loading'
@@ -836,8 +922,11 @@ export default function Home() {
                           : 'bg-rose-100 text-rose-700'
                     }`}
                   >
+                    {idiomState === 'ready' && (
+                      <CheckCircle2 className="size-3.5" aria-hidden="true" />
+                    )}
                     {idiomState === 'ready'
-                      ? '✓ 29,000+ 成语已就绪'
+                      ? '29,000+ 成语已就绪'
                       : idiomState === 'loading'
                         ? '成语词典加载中…'
                         : '词典加载失败'}
@@ -848,17 +937,18 @@ export default function Home() {
               {playMode === 'pk' && (
                 <div className="mt-7 border-t border-dashed border-slate-200 pt-6">
                   <div className="flex flex-wrap items-center justify-between gap-3">
-                    <p className="text-lg font-black">参赛小组</p>
-                    <div className="flex rounded-2xl bg-slate-100 p-1">
+                    <p className="text-lg font-bold text-slate-900">参赛小组</p>
+                    <div className="flex rounded-xl bg-slate-100 p-1">
                       {[2, 3, 4].map((count) => (
                         <Button
                           key={count}
                           variant="ghost"
+                          aria-pressed={groupCount === count}
                           onClick={() => setGroupCount(count)}
-                          className={`size-11 rounded-xl font-black ${
+                          className={`size-11 rounded-lg font-bold ${
                             groupCount === count
-                              ? 'bg-white text-violet-700 shadow-sm hover:bg-white'
-                              : 'text-slate-500'
+                              ? 'bg-white text-sky-800 shadow-sm hover:bg-white'
+                              : 'text-slate-600'
                           }`}
                         >
                           {count}
@@ -869,7 +959,7 @@ export default function Home() {
                   <div className="mt-4 grid gap-3 sm:grid-cols-2">
                     {Array.from({ length: groupCount }, (_, index) => (
                       <label key={index} className="block">
-                        <span className="mb-1.5 block text-sm font-black text-slate-500">
+                        <span className="mb-1.5 block text-sm font-semibold text-slate-600">
                           第 {index + 1} 组名称
                         </span>
                         <Input
@@ -878,7 +968,7 @@ export default function Home() {
                             updateGroupName(index, event.target.value)
                           }
                           maxLength={10}
-                          className="h-13 rounded-2xl border-2 bg-slate-50 px-4 text-lg font-bold"
+                          className="h-12 rounded-xl border-slate-300 bg-slate-50 px-4 text-lg font-semibold"
                         />
                       </label>
                     ))}
@@ -887,7 +977,10 @@ export default function Home() {
               )}
 
               <div className="mt-7 border-t border-dashed border-slate-200 pt-6">
-                <label htmlFor="start-word" className="text-lg font-black">
+                <label
+                  htmlFor="start-word"
+                  className="text-lg font-bold text-slate-900"
+                >
                   起始{rule === 'idiom' ? '成语' : '词语'}
                 </label>
                 <div className="mt-3 flex flex-col gap-3 sm:flex-row">
@@ -899,39 +992,57 @@ export default function Home() {
                       if (event.key === 'Enter') startGame();
                     }}
                     placeholder={rule === 'idiom' ? '如：一马当先' : '如：春天'}
-                    className="h-16 rounded-2xl border-2 bg-slate-50 px-5 text-2xl font-black tracking-wider"
+                    className="h-14 rounded-xl border-slate-300 bg-slate-50 px-5 text-2xl font-extrabold tracking-wider"
                   />
                   <Button
                     onClick={startGame}
-                    className={`h-16 shrink-0 rounded-2xl px-8 text-lg font-black ${accentInk} ${theme.accent} ${theme.shadow}`}
+                    className={`h-14 shrink-0 rounded-xl px-8 text-lg font-bold shadow-sm ${accentInk} ${theme.accent}`}
                   >
-                    {playMode === 'pk' ? <Trophy /> : <Sparkles />}
+                    <Play className="size-5 fill-current" aria-hidden="true" />
                     {playMode === 'pk' ? '开始比赛' : '设定并开始'}
                   </Button>
                 </div>
                 <output
                   aria-live="polite"
-                  className={`mt-4 block rounded-2xl px-4 py-3 text-sm font-black ${
+                  className={`mt-4 flex items-start gap-2 rounded-xl px-4 py-3 text-sm font-bold ${
                     feedback.type === 'fail'
                       ? 'bg-rose-50 text-rose-700'
                       : `${theme.soft} ${theme.text}`
                   }`}
                 >
+                  {feedback.type === 'fail' ? (
+                    <XCircle
+                      className="mt-0.5 size-4 shrink-0"
+                      aria-hidden="true"
+                    />
+                  ) : (
+                    <AudioLines
+                      className="mt-0.5 size-4 shrink-0"
+                      aria-hidden="true"
+                    />
+                  )}
                   {feedback.message}
                 </output>
               </div>
             </section>
 
-            <aside className="relative overflow-hidden rounded-[34px] border-2 border-amber-100 bg-[#fffdf7] p-6 shadow-[0_20px_60px_rgb(180_83_9/8%)] sm:p-8">
-              <div className="absolute -right-12 -top-12 size-40 rounded-full bg-amber-100/70" />
-              <div className="relative">
-                <span className="text-5xl" aria-hidden="true">
-                  🧩
+            <aside className="rounded-2xl border border-slate-200 bg-white p-6 shadow-[0_8px_24px_rgb(15_23_42/4%)] sm:p-8">
+              <div>
+                <span
+                  className={`grid size-11 place-items-center rounded-xl ${theme.soft} ${theme.text}`}
+                >
+                  <ListChecks
+                    className="size-6"
+                    strokeWidth={2}
+                    aria-hidden="true"
+                  />
                 </span>
-                <p className="mt-4 text-sm font-black text-amber-600">
+                <p className={`mt-4 text-sm font-bold ${theme.text}`}>
                   本局玩法
                 </p>
-                <h2 className="mt-1 text-3xl font-black">三步马上开玩</h2>
+                <h2 className="mt-1 text-3xl font-extrabold text-slate-950">
+                  三步马上开玩
+                </h2>
                 <ol className="mt-7 space-y-5">
                   {[
                     [
@@ -950,22 +1061,24 @@ export default function Home() {
                   ].map(([number, title, copy]) => (
                     <li key={number} className="flex gap-4">
                       <span
-                        className={`grid size-11 shrink-0 place-items-center rounded-2xl ${theme.accent} font-black ${accentInk}`}
+                        className={`grid size-10 shrink-0 place-items-center rounded-lg ${theme.soft} font-extrabold ${theme.text}`}
                       >
                         {number}
                       </span>
                       <div>
-                        <p className="text-lg font-black">{title}</p>
-                        <p className="mt-0.5 font-semibold leading-6 text-slate-500">
+                        <p className="text-lg font-bold text-slate-900">
+                          {title}
+                        </p>
+                        <p className="mt-0.5 font-medium leading-6 text-slate-600">
                           {copy}
                         </p>
                       </div>
                     </li>
                   ))}
                 </ol>
-                <div className={`mt-7 rounded-2xl ${theme.soft} p-4`}>
-                  <p className={`text-sm font-black ${theme.text}`}>示例</p>
-                  <p className="mt-1 text-xl font-black tracking-wide text-slate-800">
+                <div className={`mt-7 rounded-xl ${theme.soft} p-4`}>
+                  <p className={`text-sm font-bold ${theme.text}`}>示例</p>
+                  <p className="mt-1 text-xl font-extrabold tracking-wide text-slate-900">
                     {theme.example}
                   </p>
                 </div>
@@ -973,66 +1086,64 @@ export default function Home() {
             </aside>
           </div>
         ) : (
-          <div className="grid gap-5 lg:grid-cols-[minmax(0,1.55fr)_minmax(350px,.8fr)]">
+          <div className="grid gap-5 lg:grid-cols-[minmax(0,1.6fr)_minmax(330px,.72fr)]">
             <section
-              className={`relative overflow-hidden rounded-[34px] border-2 ${theme.border} bg-white p-5 shadow-[0_20px_60px_rgb(14_116_144/11%)] sm:p-8`}
+              className={`rounded-2xl border ${theme.border} bg-white p-5 shadow-[0_8px_24px_rgb(15_23_42/5%)] sm:p-7`}
             >
-              <div
-                className={`absolute -right-14 -top-14 size-52 rounded-full ${theme.soft}`}
-              />
-              <div className="absolute -bottom-16 -left-16 size-52 rounded-full bg-amber-100/50" />
-
-              <div className="relative flex min-h-[520px] flex-col items-center justify-center text-center">
-                <div className="mb-5 flex flex-wrap items-center justify-center gap-2">
+              <div className="flex min-h-[500px] flex-col items-center justify-center text-center">
+                <div className="mb-4 flex flex-wrap items-center justify-center gap-2">
                   <span
-                    className={`inline-flex items-center gap-2 rounded-full ${theme.soft} px-4 py-2 text-sm font-black ${theme.text}`}
+                    className={`inline-flex items-center gap-2 rounded-lg ${theme.soft} px-3 py-1.5 text-sm font-bold ${theme.text}`}
                   >
-                    <Sparkles className="size-4" /> {theme.short}
+                    <ThemeIcon
+                      className="size-4"
+                      strokeWidth={2}
+                      aria-hidden="true"
+                    />
+                    {theme.short}
                   </span>
                   {playMode === 'pk' && phase === 'playing' && (
-                    <span className="rounded-full bg-violet-100 px-4 py-2 text-sm font-black text-violet-700">
-                      🚩 轮到：{groups[currentGroupIndex]?.name}
+                    <span className="inline-flex items-center gap-2 rounded-lg bg-slate-100 px-3 py-1.5 text-sm font-bold text-slate-800">
+                      <Flag className="size-4" aria-hidden="true" />
+                      轮到：{groups[currentGroupIndex]?.name}
                     </span>
                   )}
                   {phase === 'finished' && (
-                    <span className="rounded-full bg-slate-100 px-4 py-2 text-sm font-black text-slate-600">
+                    <span className="rounded-lg bg-slate-100 px-3 py-1.5 text-sm font-bold text-slate-700">
                       本局已结束
                     </span>
                   )}
                 </div>
 
-                <p className="text-lg font-bold text-slate-500 sm:text-xl">
+                <p className="text-lg font-semibold text-slate-600 sm:text-xl">
                   上一个{rule === 'idiom' ? '成语' : '词语'}是
                 </p>
-                <p className="mt-1 max-w-full break-all text-5xl font-black tracking-[0.1em] text-slate-900 sm:text-7xl">
+                <p className="mt-1 max-w-full break-all text-5xl font-extrabold tracking-[0.08em] text-slate-950 sm:text-7xl">
                   {previousWord}
                 </p>
 
-                <div
-                  className="my-6 flex items-center gap-3"
+                <ArrowDown
+                  className={`my-4 size-7 ${theme.text}`}
+                  strokeWidth={2.25}
                   aria-hidden="true"
-                >
-                  <span className={`h-1 w-12 rounded-full ${theme.accent}`} />
-                  <span className={`text-2xl ${theme.text}`}>↓</span>
-                  <span className={`h-1 w-12 rounded-full ${theme.accent}`} />
-                </div>
+                />
 
-                <p className="text-xl font-black text-slate-600 sm:text-2xl">
+                <p className="text-xl font-bold text-slate-700 sm:text-2xl">
                   {rule === 'sound' ? '请接这个读音' : '请接这个字'}
                 </p>
                 <div className="mt-3 flex items-center gap-3">
                   <strong
-                    className={`grid size-16 place-items-center rounded-2xl ${theme.accent} ${theme.shadow} text-4xl ${accentInk}`}
+                    className={`grid size-16 place-items-center rounded-xl ${theme.accent} text-4xl font-extrabold ${accentInk}`}
                   >
                     {targetChar}
                   </strong>
                   {rule === 'sound' && (
-                    <span className="rounded-2xl bg-emerald-50 px-5 py-3 text-3xl font-black text-emerald-700">
+                    <span className="rounded-xl bg-emerald-50 px-5 py-3 text-3xl font-extrabold text-emerald-800">
                       {targetPinyin}
                     </span>
                   )}
                   {rule === 'idiom' && (
-                    <span className="rounded-2xl bg-amber-50 px-4 py-3 text-sm font-black text-amber-800">
+                    <span className="rounded-xl bg-amber-50 px-4 py-3 text-sm font-bold text-amber-800">
                       四字成语
                     </span>
                   )}
@@ -1042,25 +1153,21 @@ export default function Home() {
                   <>
                     <Button
                       onClick={startOrStopRecording}
-                      className={`relative mt-8 min-h-22 rounded-full px-9 text-xl font-black text-white sm:min-h-24 sm:px-12 sm:text-2xl ${
+                      aria-pressed={isRecording}
+                      className={`mt-6 h-16 rounded-xl px-8 text-xl font-bold text-white shadow-sm sm:px-10 sm:text-2xl ${
                         isRecording
-                          ? 'bg-rose-600 shadow-[0_8px_0_#9f1239] hover:bg-rose-500'
-                          : 'bg-rose-500 shadow-[0_8px_0_#be123c,0_18px_35px_rgb(244_63_94/25%)] hover:bg-rose-400'
+                          ? 'bg-rose-700 ring-4 ring-rose-200 hover:bg-rose-700'
+                          : 'bg-rose-600 hover:bg-rose-700'
                       }`}
                     >
-                      {isRecording && (
-                        <span className="absolute inset-0 -z-10 animate-ping rounded-full bg-rose-300/60" />
+                      {isRecording ? (
+                        <MicOff className="size-7" strokeWidth={2} />
+                      ) : (
+                        <Mic className="size-7" strokeWidth={2} />
                       )}
-                      <span className="grid size-12 place-items-center rounded-full bg-white/20">
-                        {isRecording ? (
-                          <MicOff className="size-7" />
-                        ) : (
-                          <Mic className="size-7" />
-                        )}
-                      </span>
                       {isRecording ? '说完了，点这里' : '点击开始录音'}
                     </Button>
-                    <p className="mt-4 text-sm font-semibold text-slate-400">
+                    <p className="mt-3 text-sm font-medium text-slate-600">
                       {speechSupported
                         ? '使用浏览器语音识别 · 不保存原始录音'
                         : '当前浏览器不支持语音识别，可使用下方键盘输入'}
@@ -1071,7 +1178,7 @@ export default function Home() {
                 <output
                   aria-live="polite"
                   aria-atomic="true"
-                  className={`mt-6 w-full max-w-2xl rounded-2xl border-2 px-5 py-4 text-left ${
+                  className={`mt-5 w-full max-w-2xl rounded-xl border px-5 py-4 text-left ${
                     feedback.type === 'success'
                       ? 'border-emerald-200 bg-emerald-50 text-emerald-800'
                       : feedback.type === 'fail'
@@ -1079,18 +1186,18 @@ export default function Home() {
                         : 'border-sky-200 bg-sky-50 text-sky-800'
                   }`}
                 >
-                  <span className="flex items-center gap-2 text-lg font-black">
+                  <span className="flex items-center gap-2 text-lg font-bold">
                     {feedback.type === 'success' ? (
-                      <CheckCircle2 />
+                      <CheckCircle2 className="size-5 shrink-0" />
                     ) : feedback.type === 'fail' ? (
-                      <XCircle />
+                      <XCircle className="size-5 shrink-0" />
                     ) : (
-                      <AudioLines />
+                      <AudioLines className="size-5 shrink-0" />
                     )}
                     {feedback.message}
                   </span>
                   {feedback.detail && (
-                    <span className="mt-1 block pl-8 text-sm font-bold opacity-75 sm:text-base">
+                    <span className="mt-1 block pl-7 text-sm font-medium sm:text-base">
                       {feedback.detail}
                     </span>
                   )}
@@ -1099,38 +1206,38 @@ export default function Home() {
                 {phase === 'playing' && (
                   <form
                     onSubmit={submitManual}
-                    className="mt-5 flex w-full max-w-2xl flex-col gap-2 rounded-2xl border border-slate-200 bg-slate-50 p-3 sm:flex-row"
+                    className="mt-4 flex w-full max-w-2xl flex-col gap-2 rounded-xl bg-slate-100 p-2.5 sm:flex-row"
                   >
                     <label className="sr-only" htmlFor="manual-answer">
                       老师键盘输入学生答案
                     </label>
                     <div className="relative flex-1">
-                      <Keyboard className="absolute left-3 top-1/2 size-5 -translate-y-1/2 text-slate-400" />
+                      <Keyboard className="absolute left-3 top-1/2 size-5 -translate-y-1/2 text-slate-500" />
                       <Input
                         id="manual-answer"
                         value={manualInput}
                         onChange={(event) => setManualInput(event.target.value)}
                         disabled={isRecording}
                         placeholder="识别不准？老师可在这里输入"
-                        className="h-12 rounded-xl border-2 bg-white pl-10 text-base font-bold"
+                        className="h-12 rounded-lg border-slate-300 bg-white pl-10 text-base font-semibold"
                       />
                     </div>
                     <Button
                       type="submit"
                       disabled={isRecording || !manualInput.trim()}
-                      className={`h-12 rounded-xl px-5 font-black ${accentInk} ${theme.accent}`}
+                      className={`h-12 rounded-lg px-5 font-bold ${accentInk} ${theme.accent}`}
                     >
                       提交答案
                     </Button>
                   </form>
                 )}
 
-                <div className="mt-5 flex flex-wrap items-center justify-center gap-2">
+                <div className="mt-4 flex flex-wrap items-center justify-center gap-2">
                   <Button
                     variant="ghost"
                     disabled={!history.length || isRecording}
                     onClick={undoLastAttempt}
-                    className="rounded-full bg-slate-100 px-4 font-black text-slate-600"
+                    className="rounded-lg bg-slate-100 px-4 font-bold text-slate-700 hover:bg-slate-200"
                   >
                     <Undo2 /> 撤销上次
                   </Button>
@@ -1139,7 +1246,7 @@ export default function Home() {
                       variant="outline"
                       disabled={isRecording}
                       onClick={finishCompetition}
-                      className="rounded-full border-2 border-amber-300 bg-amber-50 px-4 font-black text-amber-800"
+                      className="rounded-lg border-amber-300 bg-amber-50 px-4 font-bold text-amber-900 hover:bg-amber-100"
                     >
                       <Flag /> 结束比赛
                     </Button>
@@ -1147,7 +1254,7 @@ export default function Home() {
                   {phase === 'finished' && (
                     <Button
                       onClick={() => setShowResults(true)}
-                      className="rounded-full bg-amber-400 px-5 font-black text-amber-950 hover:bg-amber-300"
+                      className="rounded-lg bg-amber-400 px-5 font-bold text-amber-950 hover:bg-amber-500"
                     >
                       <Trophy /> 查看排名
                     </Button>
@@ -1156,79 +1263,99 @@ export default function Home() {
               </div>
             </section>
 
-            <aside className="flex max-h-[760px] min-h-[560px] flex-col rounded-[34px] border-2 border-amber-100 bg-[#fffdf7] p-5 shadow-[0_20px_60px_rgb(180_83_9/8%)] sm:p-7">
+            <aside className="flex max-h-[720px] min-h-[520px] flex-col rounded-2xl border border-slate-200 bg-white p-5 shadow-[0_8px_24px_rgb(15_23_42/4%)] sm:p-6">
               <div className="flex items-start justify-between gap-3">
                 <div>
-                  <p className="text-sm font-black text-amber-600">有效接龙</p>
-                  <h2 className="mt-1 text-2xl font-black text-slate-900">
+                  <p className={`text-sm font-bold ${theme.text}`}>有效接龙</p>
+                  <h2 className="mt-1 text-2xl font-extrabold text-slate-950">
                     已接 {chain.length} 个
                   </h2>
                 </div>
                 <span
-                  className={`rounded-full ${theme.soft} px-3 py-1.5 text-sm font-black ${theme.text}`}
+                  className={`inline-flex items-center gap-1.5 rounded-lg ${theme.soft} px-3 py-1.5 text-sm font-bold ${theme.text}`}
                 >
+                  <ThemeIcon
+                    className="size-4"
+                    strokeWidth={2}
+                    aria-hidden="true"
+                  />
                   {theme.short}
                 </span>
               </div>
 
-              <div className="mt-5 min-h-0 flex-1 space-y-3 overflow-y-auto pr-1">
+              <div className="mt-5 min-h-0 flex-1 space-y-2.5 overflow-y-auto pr-1">
                 {chain.map((entry, index) => (
                   <div
                     key={entry.id}
-                    className={`flex items-center gap-3 rounded-2xl border bg-white p-3 ${
+                    className={`flex items-center gap-3 rounded-xl border bg-white p-3 ${
                       index === chain.length - 1
                         ? theme.border
-                        : 'border-amber-100'
+                        : 'border-slate-200'
                     }`}
                   >
                     <span
-                      className={`grid size-9 shrink-0 place-items-center rounded-xl text-sm font-black ${
+                      className={`grid size-9 shrink-0 place-items-center rounded-lg text-sm font-bold ${
                         entry.isStart
-                          ? 'bg-amber-100 text-amber-700'
+                          ? 'bg-slate-100 text-slate-700'
                           : `${theme.soft} ${theme.text}`
                       }`}
                     >
                       {index + 1}
                     </span>
                     <div className="min-w-0 flex-1">
-                      <p className="truncate text-xl font-black tracking-wider text-slate-800">
+                      <p className="truncate text-xl font-extrabold tracking-wider text-slate-900">
                         {entry.word}
                       </p>
-                      <p className="truncate text-xs font-bold text-slate-400">
+                      <p className="truncate text-sm font-medium text-slate-600">
                         {entry.isStart ? '起始词' : entry.group} ·{' '}
                         {RULES[entry.mode].short}
                       </p>
                     </div>
-                    {!entry.isStart && <span aria-label="正确">✅</span>}
+                    {!entry.isStart && (
+                      <CheckCircle2
+                        className="size-5 shrink-0 text-emerald-600"
+                        aria-label="正确"
+                      />
+                    )}
                   </div>
                 ))}
                 <div ref={recordEndRef} />
               </div>
 
-              <details className="mt-4 rounded-2xl border border-slate-200 bg-white p-4">
-                <summary className="cursor-pointer font-black text-slate-700">
+              <details className="mt-4 rounded-xl border border-slate-200 bg-white p-4">
+                <summary className="cursor-pointer font-bold text-slate-800">
                   全部尝试记录（{attempts.length}）
                 </summary>
                 <div className="mt-3 max-h-40 space-y-2 overflow-y-auto">
                   {attempts.length === 0 ? (
-                    <p className="text-sm font-semibold text-slate-400">
+                    <p className="text-sm font-medium text-slate-600">
                       还没有作答记录
                     </p>
                   ) : (
                     attempts.map((attempt, index) => (
                       <div
                         key={attempt.id}
-                        className={`flex items-center gap-2 rounded-xl px-3 py-2 text-sm font-bold ${
+                        className={`flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-semibold ${
                           attempt.success
                             ? 'bg-emerald-50 text-emerald-800'
                             : 'bg-rose-50 text-rose-800'
                         }`}
                       >
-                        <span>{attempt.success ? '✓' : '×'}</span>
+                        {attempt.success ? (
+                          <CheckCircle2
+                            className="size-4 shrink-0"
+                            aria-hidden="true"
+                          />
+                        ) : (
+                          <XCircle
+                            className="size-4 shrink-0"
+                            aria-hidden="true"
+                          />
+                        )}
                         <span className="min-w-0 flex-1 truncate">
                           {index + 1}. {attempt.word}
                         </span>
-                        <span className="max-w-24 truncate text-xs opacity-70">
+                        <span className="max-w-24 truncate text-sm font-medium">
                           {attempt.group}
                         </span>
                       </div>
@@ -1237,81 +1364,91 @@ export default function Home() {
                 </div>
               </details>
 
-              <div className="mt-4 rounded-2xl bg-amber-50 p-4 text-sm font-bold leading-6 text-amber-800">
-                💡 错误答案会留在“尝试记录”中，但不会改变下一题的接龙目标。
+              <div className="mt-4 flex items-start gap-2.5 rounded-xl bg-slate-100 p-4 text-sm font-medium leading-6 text-slate-700">
+                <Lightbulb
+                  className="mt-0.5 size-5 shrink-0"
+                  aria-hidden="true"
+                />
+                <span>
+                  错误答案会留在“尝试记录”中，但不会改变下一题的接龙目标。
+                </span>
               </div>
             </aside>
           </div>
         )}
       </section>
 
-      {showResults && (
-        <div className="fixed inset-0 z-50 grid place-items-center overflow-hidden bg-slate-950/55 p-4 backdrop-blur-sm">
-          {CONFETTI.map((piece, index) => (
-            <span
-              key={index}
-              className="confetti-piece absolute top-[-10%] h-5 w-3 rounded-sm"
-              style={{
-                left: piece.left,
-                animationDelay: piece.delay,
-                backgroundColor: piece.color,
-              }}
-            />
+      <dialog
+        ref={resultsDialogRef}
+        aria-labelledby="results-title"
+        onClose={() => setShowResults(false)}
+        className="results-dialog m-auto max-h-[calc(100dvh-2rem)] w-[calc(100%-2rem)] max-w-xl overflow-y-auto rounded-2xl border border-amber-200 bg-white p-6 text-center text-slate-950 shadow-[0_24px_70px_rgb(15_23_42/24%)] sm:p-9"
+      >
+        {CONFETTI.map((piece, index) => (
+          <span
+            key={index}
+            className="confetti-piece pointer-events-none fixed top-[-10%] h-5 w-3 rounded-sm"
+            style={{
+              left: piece.left,
+              animationDelay: piece.delay,
+              backgroundColor: piece.color,
+            }}
+          />
+        ))}
+        <span className="mx-auto grid size-16 place-items-center rounded-xl bg-amber-100 text-amber-700">
+          <Crown className="size-8" strokeWidth={2} aria-hidden="true" />
+        </span>
+        <p className="mt-4 text-sm font-bold tracking-[0.16em] text-amber-700">
+          比赛结束
+        </p>
+        <h2
+          id="results-title"
+          data-dialog-heading
+          tabIndex={-1}
+          className="mt-2 text-4xl font-extrabold text-slate-950 sm:text-5xl"
+        >
+          {winners.length > 1 ? '并列冠军！' : '冠军诞生！'}
+        </h2>
+        <p className="mt-3 text-2xl font-extrabold text-amber-700">
+          {winners.map((group) => group.name).join('、')}
+        </p>
+
+        <div className="mt-7 space-y-2 text-left">
+          {sortedGroups.map((group) => (
+            <div
+              key={group.id}
+              className={`flex items-center gap-3 rounded-xl border p-3 ${GROUP_STYLES[(group.id - 1) % GROUP_STYLES.length].card}`}
+            >
+              <span className="grid size-10 place-items-center rounded-lg bg-white font-bold">
+                {group.score === topScore ? (
+                  <Crown className="text-amber-500" />
+                ) : (
+                  sortedGroups.filter((item) => item.score > group.score)
+                    .length + 1
+                )}
+              </span>
+              <span className="flex-1 text-lg font-bold">{group.name}</span>
+              <span className="text-2xl font-extrabold">{group.score} 分</span>
+            </div>
           ))}
-          <section className="relative w-full max-w-xl rounded-[36px] border-4 border-amber-200 bg-white p-6 text-center shadow-2xl sm:p-9">
-            <span className="mx-auto grid size-20 place-items-center rounded-full bg-amber-100 text-5xl">
-              👑
-            </span>
-            <p className="mt-4 text-sm font-black tracking-[0.2em] text-amber-600">
-              比赛结束
-            </p>
-            <h2 className="mt-2 text-4xl font-black text-slate-900 sm:text-5xl">
-              {winners.length > 1 ? '并列冠军！' : '冠军诞生！'}
-            </h2>
-            <p className="mt-3 text-2xl font-black text-amber-600">
-              {winners.map((group) => group.name).join('、')}
-            </p>
-
-            <div className="mt-7 space-y-2 text-left">
-              {sortedGroups.map((group) => (
-                <div
-                  key={group.id}
-                  className={`flex items-center gap-3 rounded-2xl border-2 p-3 ${GROUP_STYLES[(group.id - 1) % GROUP_STYLES.length]}`}
-                >
-                  <span className="grid size-10 place-items-center rounded-xl bg-white/70 font-black">
-                    {group.score === topScore ? (
-                      <Crown className="text-amber-500" />
-                    ) : (
-                      sortedGroups.filter((item) => item.score > group.score)
-                        .length + 1
-                    )}
-                  </span>
-                  <span className="flex-1 text-lg font-black">
-                    {group.name}
-                  </span>
-                  <span className="text-2xl font-black">{group.score} 分</span>
-                </div>
-              ))}
-            </div>
-
-            <div className="mt-7 flex flex-col gap-3 sm:flex-row">
-              <Button
-                variant="outline"
-                onClick={() => setShowResults(false)}
-                className="h-13 flex-1 rounded-2xl border-2 font-black"
-              >
-                返回看记录
-              </Button>
-              <Button
-                onClick={() => resetGame(true)}
-                className="h-13 flex-1 rounded-2xl bg-amber-400 font-black text-amber-950 hover:bg-amber-300"
-              >
-                <RotateCcw /> 再来一局
-              </Button>
-            </div>
-          </section>
         </div>
-      )}
+
+        <div className="mt-7 flex flex-col gap-3 sm:flex-row">
+          <Button
+            variant="outline"
+            onClick={() => setShowResults(false)}
+            className="h-12 flex-1 rounded-xl border-slate-300 font-bold"
+          >
+            返回看记录
+          </Button>
+          <Button
+            onClick={() => resetGame(true)}
+            className="h-12 flex-1 rounded-xl bg-amber-400 font-bold text-amber-950 hover:bg-amber-500"
+          >
+            <RotateCcw /> 再来一局
+          </Button>
+        </div>
+      </dialog>
     </main>
   );
 }
