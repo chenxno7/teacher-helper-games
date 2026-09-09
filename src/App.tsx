@@ -1,5 +1,3 @@
-'use client';
-
 import {
   ArrowDown,
   AudioLines,
@@ -240,7 +238,7 @@ function getSpeechSupportServerSnapshot() {
   return true;
 }
 
-export default function Home() {
+export default function App() {
   const [rule, setRule] = useState<RuleMode>('char');
   const [playMode, setPlayMode] = useState<PlayMode>('practice');
   const [phase, setPhase] = useState<Phase>('setup');
@@ -296,7 +294,7 @@ export default function Home() {
 
   useEffect(() => {
     let active = true;
-    fetch('/idioms.json')
+    fetch(`${import.meta.env.BASE_URL}idioms.json`)
       .then((response) => {
         if (!response.ok) throw new Error('idiom dictionary unavailable');
         return response.json() as Promise<string[]>;
